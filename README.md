@@ -17,7 +17,7 @@ This plugin embeds the Asyntai chatbot on your Craft site and provides a simple 
 •	**Fast responses (1–3s)**: Keeps customers from bouncing.
 
 ## Installation:
-- Install from the Plugin Store or via Composer: `composer require asyntai/asyntai-chatbot` and `Enable the plugin: php craft plugin/install asyntai-chatbot`
+- Install from the Plugin Store or via Composer: `composer require asyntai/craft-chatbot` and Enable the plugin: `php craft plugin/install asyntai`
 - Or go to Admin → Settings → Plugins
 - Find Asyntai → More options → Install
 - Go to Admin → Asyntai AI chatbot.
