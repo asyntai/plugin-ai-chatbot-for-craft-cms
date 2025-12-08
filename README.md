@@ -25,6 +25,7 @@ This plugin embeds the Asyntai chatbot on your Craft site and provides a simple 
 - After connecting, the chatbot script is enabled on all public pages automatically.
 - Set up your chatbot at [Dashboard](https://asyntai.com/dashboard#setup)
 - Don’t have an Asyntai account? Create one for free at **[Asyntai.com](https://asyntai.com/auth)**
+Note: Alternatively, if you don't want to use a plugin or if the plugin is not compatible with your Craft versions, you can also get a JavaScript snippet at asyntai.com/dashboard and manually insert it into your web pages.
 
 ## Need help?
 Feel free to contact us at hello@asyntai.com or try our AI chatbot directly at [Asyntai.com](https://asyntai.com)
