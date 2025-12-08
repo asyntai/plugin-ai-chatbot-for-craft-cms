@@ -1,7 +1,7 @@
 {
   "name": "asyntai/craft-chatbot",
   "description": "Asyntai - AI Chatbot plugin for Craft CMS",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "craft-plugin",
   "license": "proprietary",
   "keywords": ["asyntai", "chatbot", "ai", "assistant", "craft"],
