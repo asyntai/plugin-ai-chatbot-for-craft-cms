@@ -13,9 +13,9 @@ use yii\base\Event;
 
 class Plugin extends BasePlugin
 {
-    public bool $hasCpSettings = true;
-    public bool $hasCpSection = true;
-    public string $schemaVersion = '1.0.0';
+    public $hasCpSettings = true;
+    public $hasCpSection = true;
+    public $schemaVersion = '1.0.0';
 
     public function init()
     {
@@ -57,17 +57,17 @@ class Plugin extends BasePlugin
         });
     }
 
-    protected function createSettingsModel(): ?\craft\base\Model
+    protected function createSettingsModel()
     {
         return new models\Settings();
     }
 
-    public function getSettingsResponse(): mixed
+    public function getSettingsResponse()
     {
         return \Craft::$app->getResponse()->redirect(\craft\helpers\UrlHelper::cpUrl('asyntai'));
     }
 
-    public function getCpNavItem(): ?array
+    public function getCpNavItem()
     {
         $item = parent::getCpNavItem();
         $item['label'] = 'Asyntai AI Chatbot';
