@@ -9,7 +9,7 @@ use yii\filters\VerbFilter;
 
 class SettingsController extends Controller
 {
-    protected $allowAnonymous = false;
+    protected array|int|bool $allowAnonymous = false;
     public $enableCsrfValidation = false;
 
     public function behaviors(): array

@@ -1,41 +1,83 @@
-# Asyntai – AI Chatbot for Craft CMS
-Create and launch AI assistant/chatbot for your Craft website in minutes. It talks to your visitors, helps, explains, never misses a chat and can increase conversion rates! All while knowing your website, customized just for you. Your Craft website can now talk.
+# Asyntai - AI Chatbot
 
-This plugin embeds the Asyntai chatbot on your Craft site and provides a simple admin page to connect your site to Asyntai.
+AI assistant / chatbot plugin for Craft CMS – Provides instant answers to your website visitors.
 
+## Description
 
-## Why choose Asyntai?
+Asyntai adds an AI chatbot to your Craft CMS site. It provides instant answers to visitors according to your instructions/knowledge base.
 
-• **Increase conversions**: Instant, human like replies keep shoppers engaged and buying.
+## Requirements
 
-•	**Never miss a chat**: The AI replies day and night, even when your team is offline.
+- Craft CMS 3.7 or later (supports Craft 3, 4, and 5)
+- PHP 7.2 or later
 
-•	**Knows your website**: Customized just for you; it follows your instructions.
+## Installation
 
-•	**Works in all languages**: Automatically detects and answers in the visitor’s language.
+### Method 1: Via Composer (Recommended)
 
-•	**Fast responses (1–3s)**: Keeps customers from bouncing.
+1. Add the plugin as a path repository in your project's `composer.json`:
 
-## Installation:
-- Install from the Plugin Store or via Composer: `composer require asyntai/craft-chatbot` and Enable the plugin: `php craft plugin/install asyntai`
-- Or go to Admin → Settings → Plugins
-- Find Asyntai → More options → Install
-- Go to Admin → Asyntai AI chatbot.
-- Click "Get started" and complete the connection.
-- After connecting, the chatbot script is enabled on all public pages automatically.
-- Set up your chatbot at [Dashboard](https://asyntai.com/dashboard#setup)
-- Don’t have an Asyntai account? Create one for free at **[Asyntai.com](https://asyntai.com/auth)**
+```json
+"repositories": [
+    {
+        "type": "path",
+        "url": "plugins/craft/asyntai"
+    }
+]
+```
 
-Note: Alternatively, if you don't want to use a plugin or if the plugin is not compatible with your Craft versions, you can also get a JavaScript snippet at [Dashboard](https://asyntai.com/dashboard#setup) and manually insert it into your web pages.
+2. Require the plugin via Composer:
 
-## Need help?
-Feel free to contact us at hello@asyntai.com or try our AI chatbot directly at [Asyntai.com](https://asyntai.com)
+```bash
+composer require asyntai/asyntai-chatbot
+```
 
+3. Install the plugin in Craft CP:
+   - Go to **Settings** → **Plugins**
+   - Find "Asyntai - AI Chatbot" and click **Install**
 
-![Asyntai AI chatbot 1](https://asyntai.com/static/images/ai-chatbot-for-websites-1.png)
-![Asyntai AI chatbot 2](https://asyntai.com/static/images/ai-chatbot-for-websites-2.png)
-![Asyntai AI chatbot 3](https://asyntai.com/static/images/ai-chatbot-for-websites-3.png)
-![Asyntai AI chatbot 4](https://asyntai.com/static/images/ai-chatbot-for-websites-4.png)
-![Asyntai AI chatbot 5](https://asyntai.com/static/images/ai-chatbot-for-websites-5.png)
+### Method 2: Manual Installation
 
+1. Copy the `asyntai` folder to your Craft project's `vendor` directory (or use a custom modules path)
+2. Run `composer dump-autoload` from your project root
+3. Install the plugin via Craft CP: **Settings** → **Plugins** → **Install**
+
+## Setup
+
+1. After installation, go to **Settings** → **Plugins** → **Asyntai - AI Chatbot**
+2. Click the **Get started** button to create a free Asyntai account or sign in
+3. The popup will connect your site automatically
+4. Once connected, the chatbot will appear on all pages of your site
+
+## Configuration
+
+After connecting your account, you can:
+
+- **Manage chatbot settings**: Visit [Asyntai Dashboard](https://asyntai.com/dashboard)
+- **Customize AI responses**: Go to [Setup page](https://asyntai.com/dashboard#setup)
+- **View chat logs**: Available in your Asyntai panel
+
+## External Services
+
+This plugin connects to Asyntai.com to enable and operate the chatbot widget. The Asyntai service hosts the chatbot application and processes chats so your visitors can interact with the AI assistant on your site.
+
+To complete the plugin setup, you need to create an account or log in to your existing Asyntai account (via asyntai.com). The external service is required to deliver the chatbot experience, process messages, and manage settings and logs.
+
+See Asyntai's [Terms of Service](https://asyntai.com/terms-and-conditions/) and [Privacy Policy](https://asyntai.com/privacy-policy/).
+
+## Support
+
+For support, please visit [asyntai.com/contact](https://asyntai.com/contact)
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Changelog
+
+### 1.0.0
+* Initial release
+* Support for Craft CMS 3.7+ through 5.x
+* OAuth-style connection flow
+* Automatic chatbot injection on all site pages
 
