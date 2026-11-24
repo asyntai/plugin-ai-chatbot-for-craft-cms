@@ -6,26 +6,36 @@ use Craft;
 use craft\base\Plugin as BasePlugin;
 use craft\events\RegisterTemplateRootsEvent;
 use craft\events\RegisterUrlRulesEvent;
-use craft\events\TemplateEvent;
 use craft\web\UrlManager;
 use craft\web\View;
 use yii\base\Event;
 
 class Plugin extends BasePlugin
 {
-    public bool $hasCpSettings = true;
-    public bool $hasCpSection = true;
-    public string $schemaVersion = '1.0.0';
+    use SettingsResponse;
 
-    public function init()
+    public const DEFAULT_ORIGIN = 'https://asyntai.com';
+
+    public function init(): void
     {
+        // Set here rather than declared above, because Craft 3 declares these
+        // properties without types and Craft 4 and 5 declare them with types.
+        $this->hasCpSettings = true;
+        $this->hasCpSection = true;
+        $this->schemaVersion = '1.1.0';
+
         parent::init();
 
-        // Register CP routes for AJAX saves and reset
+        // Register CP routes
         Event::on(UrlManager::class, UrlManager::EVENT_REGISTER_CP_URL_RULES, function (RegisterUrlRulesEvent $event) {
             $event->rules['asyntai/save'] = 'asyntai/settings/save';
             $event->rules['asyntai/reset'] = 'asyntai/settings/reset';
             $event->rules['asyntai'] = 'asyntai/settings/index';
+        });
+
+        // The signed page feed: /asyntai-feed/products and /asyntai-feed/pages
+        Event::on(UrlManager::class, UrlManager::EVENT_REGISTER_SITE_URL_RULES, function (RegisterUrlRulesEvent $event) {
+            $event->rules['asyntai-feed/<which:(products|pages)>'] = 'asyntai/feed/index';
         });
 
         // Register plugin template roots (CP + Site)
@@ -39,32 +49,46 @@ class Plugin extends BasePlugin
         // Inject widget script on site requests when connected
         Event::on(View::class, View::EVENT_END_BODY, function ($event) {
             $request = Craft::$app->getRequest();
-            if (!$request->getIsSiteRequest()) {
+            if (!$request->getIsSiteRequest() || $request->getIsConsoleRequest()) {
                 return;
             }
-            $settings = $this->getSettings();
-            $siteId = trim((string)($settings->siteId ?? ''));
+            try {
+                $connection = Store::connection();
+            } catch (\Throwable $e) {
+                return;
+            }
+            $siteId = $connection['siteId'];
             if ($siteId === '') {
                 return;
             }
-            $scriptUrl = trim((string)($settings->scriptUrl ?? 'https://asyntai.com/static/js/chat-widget.js'));
-            Craft::$app->getView()->registerJsFile($scriptUrl, [
-                'async' => true,
-                'defer' => true,
-                'data' => ['asyntai-id' => $siteId],
-                'position' => View::POS_END,
-            ]);
+            // Inject the widget script only after the page's load event: an
+            // async script tag still holds the load event open until its fetch
+            // times out, so an unreachable Asyntai server would delay the page.
+            $js = '(function(){var l=function(){var s=document.createElement("script");'
+                . 's.src=' . json_encode(Store::cleanScriptUrl($connection['scriptUrl'])) . ';s.async=true;'
+                . 's.setAttribute("data-asyntai-id",' . json_encode($siteId) . ');'
+                . 'document.head.appendChild(s)};'
+                . 'if(document.readyState==="complete"){l()}'
+                . 'else{window.addEventListener("load",l)}})();';
+            Craft::$app->getView()->registerJs($js, View::POS_END);
         });
+    }
+
+    /** Where the plugin talks to. The ASYNTAI_ORIGIN environment variable overrides it for testing. */
+    public static function origin(): string
+    {
+        $custom = '';
+        if (class_exists(\craft\helpers\App::class) && method_exists(\craft\helpers\App::class, 'env')) {
+            $custom = (string)\craft\helpers\App::env('ASYNTAI_ORIGIN');
+        } elseif (getenv('ASYNTAI_ORIGIN') !== false) {
+            $custom = (string)getenv('ASYNTAI_ORIGIN');
+        }
+        return $custom !== '' ? rtrim($custom, '/') : self::DEFAULT_ORIGIN;
     }
 
     protected function createSettingsModel(): ?\craft\base\Model
     {
         return new models\Settings();
-    }
-
-    public function getSettingsResponse(): mixed
-    {
-        return \Craft::$app->getResponse()->redirect(\craft\helpers\UrlHelper::cpUrl('asyntai'));
     }
 
     public function getCpNavItem(): ?array
@@ -92,5 +116,3 @@ class Plugin extends BasePlugin
         return parent::getIconPath();
     }
 }
-
-

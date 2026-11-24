@@ -1,9 +1,10 @@
 {% extends "_layouts/cp" %}
 {% set title = 'Asyntai AI Chatbot' %}
 
-{% set siteId = settings.siteId ?? '' %}
-{% set accountEmail = settings.accountEmail ?? '' %}
-{% set scriptUrl = settings.scriptUrl ?? 'https://asyntai.com/static/js/chat-widget.js' %}
+{% set siteId = siteId ?? '' %}
+{% set accountEmail = accountEmail ?? '' %}
+{% set shareOn = shareOn ?? false %}
+{% set origin = origin ?? 'https://asyntai.com' %}
 {% set connected = siteId|length %}
 
 {% block content %}
@@ -26,61 +27,99 @@
             <div style="margin-top:16px;font-size:14px;color:#666;">
                 <strong>Tip:</strong> If you want to change how the AI answers, please <a href="https://asyntai.com/dashboard#setup" target="_blank" rel="noopener" style="color:#3182ce;text-decoration:underline;">go here</a>.
             </div>
+            <div style="margin-top:18px;padding-top:14px;border-top:1px solid #eee;text-align:left;">
+                <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
+                    <input type="checkbox" id="asyntai-share-toggle"{{ shareOn ? ' checked' }} style="margin-top:4px;">
+                    <span><strong>Share my published pages with the chatbot</strong><br><small style="color:#666;">Asyntai reads the published pages that any visitor can already see, and checks them again for changes. Nothing on your site is changed.</small></span>
+                </label>
+                <div id="asyntai-share-status" style="margin-top:8px;color:#555;"></div>
+            </div>
         </div>
     </div>
 
     <div id="asyntai-popup-wrap" style="display:{{ connected ? 'none' : 'block' }};">
         <div style="max-width:960px;margin:20px auto;padding:24px;border:1px solid #ddd;border-radius:8px;background:#fff;text-align:center;">
             <div style="font-size:18px;margin-bottom:12px;">Create a free Asyntai account or sign in to enable the chatbot</div>
-            <button id="asyntai-connect-btn" class="btn" style="background-color:#2563eb;color:#fff;border-color:#2563eb;">Get started</button>
+            <label style="display:inline-flex;align-items:flex-start;gap:8px;text-align:left;max-width:560px;margin:4px auto 16px;cursor:pointer;">
+                <input type="checkbox" id="asyntai-share" checked style="margin-top:4px;">
+                <span>Let the chatbot read my published pages directly, so its answers stay up to date.<br><small style="color:#666;">Only published pages that any visitor can already see. Nothing on your site is changed.</small></span>
+            </label>
+            <div><button id="asyntai-connect-btn" class="btn" style="background-color:#2563eb;color:#fff;border-color:#2563eb;">Get started</button></div>
             <div style="margin-top:12px;color:#666;">If it doesn't work, <a href="#" id="asyntai-fallback-link" target="_blank" rel="noopener">open the connect window</a>.</div>
         </div>
     </div>
 </div>
 
-<script>
+{% js %}
 (function(){
+    var ORIGIN = {{ origin|json_encode|raw }};
+    var AUTH = ORIGIN + '/wp-auth?platform=craft';
+    var SITE_ID = {{ siteId|json_encode|raw }};
     var currentState = null;
-    
+
+    function $(id){ return document.getElementById(id); }
+
     function showAlert(msg, ok){
-        var el=document.getElementById('asyntai-alert'); if(!el) return;
+        var el=$('asyntai-alert'); if(!el) return;
         el.style.display='block';
         el.className='callout '+(ok?'callout-success':'callout-danger');
         el.textContent=msg;
     }
-    
+
     function generateState(){
-        return 'craft_'+Math.random().toString(36).substr(2,9);
+        return 'craft_'+Math.random().toString(36).substr(2,9)+Math.random().toString(36).substr(2,9);
     }
-    
-    function updateFallbackLink(){
-        var fallbackLink = document.getElementById('asyntai-fallback-link');
-        if(fallbackLink && currentState){
-            fallbackLink.href = 'https://asyntai.com/wp-auth?platform=craft&state='+encodeURIComponent(currentState);
+
+    // Calls one action of this plugin. Craft adds its CSRF token.
+    function call(action, data, method){
+        data = data || {};
+        method = method || 'POST';
+        if (window.Craft && typeof Craft.sendActionRequest === 'function') {
+            return Craft.sendActionRequest(method, 'asyntai/settings/'+action, method === 'GET' ? {} : { data: data })
+                .then(function(res){ return (res && res.data) || {}; })
+                .catch(function(err){
+                    if (err && err.response && err.response.data) { return err.response.data; }
+                    return { success:false, error:(err && err.message) || 'Request failed' };
+                });
         }
+        return new Promise(function(resolve){
+            Craft.postActionRequest('asyntai/settings/'+action, data, function(res, status){
+                resolve(res || { success:false, error:status || 'Request failed' });
+            });
+        });
     }
-    
-    function openPopup(){
-        currentState = generateState();
-        updateFallbackLink();
-        var base='https://asyntai.com/wp-auth?platform=craft';
-        var url=base+(base.indexOf('?')>-1?'&':'?')+'state='+encodeURIComponent(currentState);
+
+    function updateFallbackLink(){
+        var a=$('asyntai-fallback-link');
+        if(a && currentState){ a.href = AUTH+'&state='+encodeURIComponent(currentState); }
+    }
+
+    // The sign-in window opens at once, inside the click, so a popup blocker
+    // lets it through. It is pointed at the sign-in page as soon as the page
+    // feed is parked. If parking fails, connecting works as before, only
+    // without page sharing.
+    function startConnect(share){
         var w=800,h=720;var y=window.top.outerHeight/2+window.top.screenY-(h/2);var x=window.top.outerWidth/2+window.top.screenX-(w/2);
-        var pop=window.open(url,'asyntai_connect','toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width='+w+',height='+h+',top='+y+',left='+x);
+        var pop=window.open('','asyntai_connect','toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width='+w+',height='+h+',top='+y+',left='+x);
         if(!pop){ showAlert('Popup blocked. Please allow popups or use the link below.', false); return; }
-        pollForConnection(currentState);
+        var go=function(state){
+            currentState=state; updateFallbackLink();
+            try { pop.location.href = AUTH+'&state='+encodeURIComponent(state); } catch(e) {}
+            pollForConnection(state);
+        };
+        call('prepare', { share: share ? '1' : '0' }).then(function(res){
+            go(res && res.success && res.state ? res.state : generateState());
+        });
     }
-    
-    // Initialize fallback link on page load
-    currentState = generateState();
-    updateFallbackLink();
+
     function pollForConnection(state){
-        var attempts=0;
+        // Signing up can take a few minutes, so keep waiting for 10 minutes.
+        var until = Date.now() + 10*60*1000;
         function check(){
-            if(attempts++>60) return;
+            if(Date.now() > until) return;
             var script=document.createElement('script');
             var cb='asyntai_cb_'+Date.now();
-            script.src='https://asyntai.com/connect-status.js?state='+encodeURIComponent(state)+'&cb='+cb;
+            script.src=ORIGIN+'/connect-status.js?state='+encodeURIComponent(state)+'&cb='+cb;
             window[cb]=function(data){ try{ delete window[cb]; }catch(e){}
                 if(data && data.site_id){ saveConnection(data); return; }
                 setTimeout(check, 500);
@@ -90,93 +129,83 @@
         }
         setTimeout(check, 800);
     }
+
     function saveConnection(data){
         showAlert('Asyntai connected. Saving…', true);
-        var payload={ 
-            site_id: data.site_id||'',
-            [Craft.csrfTokenName]: Craft.csrfTokenValue
-        };
+        var payload={ site_id: data.site_id||'' };
         if(data.script_url) payload.script_url=data.script_url;
         if(data.account_email) payload.account_email=data.account_email;
-        if (Craft && typeof Craft.sendActionRequest === 'function') {
-            Craft.sendActionRequest('POST', 'asyntai/settings/save', { data: payload })
-            .then(function(res){ var json=res && res.data || {}; if(!json.success) throw new Error(json.error||'Save failed');
-                showAlert('Asyntai connected. Chatbot enabled on all pages.', true);
-                var status=document.getElementById('asyntai-status');
-                if(status){
-                    var html='Status: <span style="color:#008a20;">Connected</span>';
-                    if(payload.account_email){ html+=' as '+payload.account_email; }
-                    html += ' <button id="asyntai-reset" class="btn">Reset</button>';
-                    status.innerHTML=html;
-                }
-                var box=document.getElementById('asyntai-connected-box'); if(box) box.style.display='block';
-                var wrap=document.getElementById('asyntai-popup-wrap'); if(wrap) wrap.style.display='none';
-            })
-            .catch(function(err){ showAlert('Could not save settings: '+(err && (err.message||err.response&&err.response.data&&err.response.data.error) || err), false); });
-            return;
-        }
-        fetch(Craft.getActionUrl('asyntai/settings/save'), {
-            method:'POST',
-            headers:{ 
-                'Content-Type':'application/json',
-                'Accept':'application/json',
-                'X-Requested-With':'XMLHttpRequest',
-                'X-CSRF-Token':Craft.csrfTokenValue
-            },
-            credentials:'same-origin',
-            body: JSON.stringify(payload)
-        }).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }).then(function(json){
-            if(!json || !json.success) throw new Error(json && json.error || 'Save failed');
+        call('save', payload).then(function(json){
+            if(!json || !json.success){ showAlert('Could not save settings: '+((json && json.error) || 'Save failed'), false); return; }
             showAlert('Asyntai connected. Chatbot enabled on all pages.', true);
-            var status=document.getElementById('asyntai-status');
+            var status=$('asyntai-status');
             if(status){
-                var html='Status: <span style="color:#008a20;">Connected</span>';
-                if(payload.account_email){ html+=' as '+payload.account_email; }
-                html += ' <button id="asyntai-reset" class="btn">Reset</button>';
-                status.innerHTML=html;
+                status.innerHTML='Status: <span style="color:#008a20;">Connected</span>';
+                if(payload.account_email){ status.appendChild(document.createTextNode(' as '+payload.account_email+' ')); }
+                var b=document.createElement('button'); b.id='asyntai-reset'; b.className='btn'; b.textContent='Reset'; status.appendChild(b);
             }
-            var box=document.getElementById('asyntai-connected-box'); if(box) box.style.display='block';
-            var wrap=document.getElementById('asyntai-popup-wrap'); if(wrap) wrap.style.display='none';
-        }).catch(function(err){ showAlert('Could not save settings: '+(err && err.message || err), false); });
+            var box=$('asyntai-connected-box'); if(box) box.style.display='block';
+            var wrap=$('asyntai-popup-wrap'); if(wrap) wrap.style.display='none';
+            SITE_ID = payload.site_id;
+            var t=$('asyntai-share-toggle'); if(t) t.checked=!!json.feed_enabled;
+            refreshStatus(0);
+        });
     }
+
     function resetConnection(){
-        var payload = { [Craft.csrfTokenName]: Craft.csrfTokenValue };
-        if (Craft && typeof Craft.sendActionRequest === 'function') {
-            Craft.sendActionRequest('POST', 'asyntai/settings/reset', { data: payload })
-            .then(function(){ window.location.reload(); })
-            .catch(function(err){ showAlert('Reset failed: '+(err && (err.message||err.response&&err.response.data&&err.response.data.error) || err), false); });
-            return;
-        }
-        fetch(Craft.getActionUrl('asyntai/settings/reset'), { 
-            method:'POST', 
-            headers:{ 
-                'Content-Type':'application/json',
-                'Accept':'application/json',
-                'X-Requested-With':'XMLHttpRequest',
-                'X-CSRF-Token':Craft.csrfTokenValue 
-            }, 
-            credentials:'same-origin',
-            body: JSON.stringify(payload)
-        })
-        .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-        .then(function(){ window.location.reload(); })
-        .catch(function(err){ showAlert('Reset failed: '+(err && err.message || err), false); });
+        if(!confirm('Are you sure you want to disconnect Asyntai?')) return;
+        call('reset').then(function(res){
+            if(!res || !res.success){ showAlert('Reset failed: '+((res && res.error) || 'unknown error'), false); return; }
+            window.location.reload();
+        });
     }
-    document.addEventListener('click', function(ev){ 
-        var t=ev.target; 
-        if(t && t.id==='asyntai-connect-btn'){ ev.preventDefault(); openPopup(); }
+
+    function refreshStatus(tries){
+        var box=$('asyntai-share-status'), t=$('asyntai-share-toggle');
+        if(!box || !t) return;
+        if(!t.checked || !SITE_ID){ box.textContent=''; return; }
+        call('status', {}, 'GET').then(function(res){
+            if(!res || !res.success){ box.textContent=''; return; }
+            var s=res.sync;
+            if(!s){ box.textContent='Asyntai has not read your pages yet.'; return; }
+            if(s.status==='syncing'){ box.textContent='Reading your pages…'; if(tries<20) setTimeout(function(){ refreshStatus(tries+1); }, 5000); return; }
+            if(s.status==='failed'){ box.textContent='The last read failed: '+(s.error||'unknown error'); return; }
+            box.textContent='Pages shared: '+(s.count||0)+' items. Asyntai checks them again for changes.';
+        });
+    }
+
+    function onToggle(t){
+        var on=!!t.checked;
+        call('share', { enabled: on ? '1' : '0' }).then(function(res){
+            if(!res || !res.success){
+                t.checked=!on;
+                if(res && res.needs_connect){ showAlert('Sign in to Asyntai once more to share your pages.', true); startConnect(true); return; }
+                showAlert((res && res.error) || 'Could not save.', false);
+                return;
+            }
+            showAlert(on ? 'Page sharing is on.' : 'Page sharing is off. Asyntai can no longer read your pages.', true);
+            refreshStatus(0);
+        });
+    }
+
+    currentState = generateState();
+    updateFallbackLink();
+
+    document.addEventListener('click', function(ev){
+        var t=ev.target;
+        if(t && t.id==='asyntai-connect-btn'){ ev.preventDefault(); var s=$('asyntai-share'); startConnect(s ? !!s.checked : false); }
         if(t && t.id==='asyntai-reset'){ ev.preventDefault(); resetConnection(); }
-        if(t && t.id==='asyntai-fallback-link'){ 
-            // Re-generate state and update link when clicked
+        if(t && t.id==='asyntai-fallback-link'){
             currentState = generateState();
             updateFallbackLink();
-            // Let the link work normally (target="_blank")
-            // Also start polling for this state
             setTimeout(function(){ pollForConnection(currentState); }, 1000);
         }
     });
+    document.addEventListener('change', function(ev){
+        var t=ev.target;
+        if(t && t.id==='asyntai-share-toggle'){ onToggle(t); }
+    });
+    refreshStatus(0);
 })();
-</script>
+{% endjs %}
 {% endblock %}
-
-
