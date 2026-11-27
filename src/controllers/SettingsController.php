@@ -62,6 +62,8 @@ class SettingsController extends Controller
             return $this->asJson(['success' => false, 'error' => 'failed to save settings']);
         }
 
+        $this->refreshPageCaches();
+
         return $this->asJson([
             'success' => true,
             'feed_enabled' => Store::get('feed_enabled') === '1' && Store::get('feed_token') !== '',
@@ -91,6 +93,8 @@ class SettingsController extends Controller
         } catch (\Throwable $e) {
             // Read-only project config. The empty site_id above already wins.
         }
+
+        $this->refreshPageCaches();
 
         return $this->asJson(['success' => true]);
     }
@@ -191,6 +195,38 @@ class SettingsController extends Controller
             $sync = null;
         }
         return $this->asJson(['success' => true, 'sync' => $sync]);
+    }
+
+    /**
+     * The widget tag is part of every page, so cached pages must be built
+     * again after a connect or a reset. Clears Craft's own caches and, on
+     * Craft Cloud, the static page cache.
+     */
+    private function refreshPageCaches(): void
+    {
+        try {
+            Craft::$app->getElements()->invalidateAllCaches();
+        } catch (\Throwable $e) {
+            Craft::warning('Asyntai cache clear: ' . $e->getMessage(), __METHOD__);
+        }
+
+        try {
+            if (class_exists(\craft\cloud\Module::class)
+                && class_exists(\craft\cloud\Helper::class)
+                && \craft\cloud\Helper::isCraftCloud()) {
+                $module = \craft\cloud\Module::getInstance();
+                if ($module) {
+                    $cache = $module->getStaticCache();
+                    if (method_exists($cache, 'purgeOrigin')) {
+                        $cache->purgeOrigin();
+                    } elseif (method_exists($cache, 'purgeGateway')) {
+                        $cache->purgeGateway();
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Craft::warning('Asyntai static cache clear: ' . $e->getMessage(), __METHOD__);
+        }
     }
 
     private function requireAsyntaiAdmin(): void

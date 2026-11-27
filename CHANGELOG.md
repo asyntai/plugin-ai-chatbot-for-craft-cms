@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 - 2026-11-27
+
+### Fixed
+* Cached pages now show the chatbot right after you connect, also on Craft Cloud.
+
 ## 1.1.0 - 2026-11-24
 
 ### Added
